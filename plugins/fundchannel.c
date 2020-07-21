@@ -15,6 +15,8 @@
 const char *placeholder_script = "0020b95810f824f843934fa042acd0becba52087813e260edaeebc42b5cb9abe1464";
 const char *placeholder_funding_addr;
 
+const char *placeholder_script_omni = "a914f45d94733d430261962932e0c847075195916a0487";
+
 /* Populated by libplugin */
 extern const struct chainparams *chainparams;
 
@@ -284,8 +286,14 @@ static struct command_result *post_dryrun(struct command *cmd,
 	const char *hex;
 	struct amount_sat funding;
 	bool funding_found;
-	u8 *placeholder = tal_hexdata(tmpctx, placeholder_script, strlen(placeholder_script));
+	u8 *placeholder;
 	struct amount_asset asset;
+
+	if (streq(chainparams->network_name, "omni"))
+		placeholder = tal_hexdata(tmpctx, placeholder_script_omni, strlen(placeholder_script_omni));
+	else
+		placeholder = tal_hexdata(tmpctx, placeholder_script, strlen(placeholder_script));
+
 
 	/* Stash the 'reserved' txid to unreserve later */
 	hex = json_strdup(tmpctx, buf, json_get_member(buf, result, "txid"));
@@ -418,13 +426,18 @@ static void init(struct plugin *p,
 {
 	/* Figure out what the 'placeholder' addr is */
 	const char *network_name;
-	u8 *placeholder = tal_hexdata(tmpctx, placeholder_script, strlen(placeholder_script));
-
 	network_name = rpc_delve(tmpctx, p, "listconfigs",
 				 take(json_out_obj(NULL, "config",
 						   "network")),
 				 ".network");
 	chainparams = chainparams_for_network(network_name);
+
+	u8 * placeholder;
+	if (streq(chainparams->network_name, "omni"))
+		placeholder = tal_hexdata(tmpctx, placeholder_script_omni, strlen(placeholder_script_omni));
+	else
+		placeholder = tal_hexdata(tmpctx, placeholder_script, strlen(placeholder_script));
+
 	placeholder_funding_addr = encode_scriptpubkey_to_addr(NULL, chainparams,
 							       placeholder);
 }

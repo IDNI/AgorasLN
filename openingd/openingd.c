@@ -633,11 +633,21 @@ static u8 *funder_channel_start(struct state *state, u8 channel_flags)
 	if (!check_config_bounds(state, &state->remoteconf, true))
 		return NULL;
 
-	funding_output_script =
-		scriptpubkey_p2wsh(tmpctx,
-				   bitcoin_redeem_2of2(tmpctx,
-						       &state->our_funding_pubkey,
-						       &state->their_funding_pubkey));
+
+	if (!streq(chainparams->network_name, "omni"))
+		funding_output_script =
+			scriptpubkey_p2wsh(tmpctx,
+				bitcoin_redeem_2of2(tmpctx,
+					       			&state->our_funding_pubkey,
+									&state->their_funding_pubkey));
+	else
+		funding_output_script =
+			scriptpubkey_p2sh(tmpctx,
+            	scriptpubkey_p2wsh(tmpctx,
+					bitcoin_redeem_2of2(tmpctx,
+										&state->our_funding_pubkey,
+										&state->their_funding_pubkey)));
+
 
 	/* Update the billboard with our infos */
 	peer_billboard(false,

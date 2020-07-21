@@ -44,8 +44,14 @@ static void add_offered_htlc_out(struct bitcoin_tx *tx, size_t n,
 
 	ripemd160(&ripemd, htlc->rhash.u.u8, sizeof(htlc->rhash.u.u8));
 	wscript = htlc_offered_wscript(tx, &ripemd, keyset);
-	p2wsh = scriptpubkey_p2wsh(tx, wscript);
+
+	if (!streq(chainparams->network_name, "omni"))
+		p2wsh = scriptpubkey_p2wsh(tx, wscript);
+	else
+		p2wsh = scriptpubkey_p2sh(tx,scriptpubkey_p2wsh(tx, wscript));
+
 	bitcoin_tx_add_output(tx, p2wsh, wscript, amount);
+
 	SUPERVERBOSE("# HTLC %" PRIu64 " offered %s wscript %s\n", htlc->id,
 		     type_to_string(tmpctx, struct amount_sat, &amount),
 		     tal_hex(wscript, wscript));
@@ -62,7 +68,11 @@ static void add_received_htlc_out(struct bitcoin_tx *tx, size_t n,
 
 	ripemd160(&ripemd, htlc->rhash.u.u8, sizeof(htlc->rhash.u.u8));
 	wscript = htlc_received_wscript(tx, &ripemd, &htlc->expiry, keyset);
-	p2wsh = scriptpubkey_p2wsh(tx, wscript);
+	if (!streq(chainparams->network_name, "omni"))
+		p2wsh = scriptpubkey_p2wsh(tx, wscript);
+	else
+		p2wsh = scriptpubkey_p2sh(tx,scriptpubkey_p2wsh(tx, wscript));
+
 	amount = amount_msat_to_sat_round_down(htlc->amount);
 
 	bitcoin_tx_add_output(tx, p2wsh, wscript, amount);
@@ -202,7 +212,13 @@ struct bitcoin_tx *commit_tx(const tal_t *ctx,
 	 */
 	if (amount_msat_greater_eq_sat(self_pay, dust_limit)) {
 		u8 *wscript = to_self_wscript(tmpctx, to_self_delay,keyset);
-		u8 *p2wsh = scriptpubkey_p2wsh(tx, wscript);
+		u8 *p2wsh;// = scriptpubkey_p2wsh(tx, wscript);
+
+		if (!streq(chainparams->network_name, "omni"))
+			p2wsh = scriptpubkey_p2wsh(tx, wscript);
+		else
+			p2wsh = scriptpubkey_p2sh(tx,scriptpubkey_p2wsh(tx, wscript));
+
 		struct amount_sat amount = amount_msat_to_sat_round_down(self_pay);
 
 		bitcoin_tx_add_output(tx, p2wsh, wscript, amount);
@@ -225,7 +241,7 @@ struct bitcoin_tx *commit_tx(const tal_t *ctx,
 	if (amount_msat_greater_eq_sat(other_pay, dust_limit)) {
 		struct amount_sat amount = amount_msat_to_sat_round_down(other_pay);
 		u8 *p2wpkh =
-		    scriptpubkey_p2wpkh(tx, &keyset->other_payment_key);
+			scriptpubkey_p2wpkh(tx, &keyset->other_payment_key);
 		/* BOLT #3:
 		 *
 		 * #### `to_remote` Output

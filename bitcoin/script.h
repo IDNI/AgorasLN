@@ -152,4 +152,16 @@ bool scripteq(const u8 *s1, const u8 *s2);
 /* OP_0 + PUSH(32-byte-hash) */
 #define BITCOIN_SCRIPTPUBKEY_P2WSH_LEN (1 + 1 + 32)
 
+/* Create scriptsig for p2sh-p2wsh */
+u8 *bitcoin_scriptsig_p2sh_p2wsh(const tal_t *ctx, u8 *redeemscript);
+
+/* Create script for OMNI output */
+u8* script_omnisend(const tal_t *ctx, const u32 omni_asset, const u64 omni_ammount);
+
+// auxiliar functions for script_omnisend,
+// TODO: refactor/remove
+void SwapByteOrder16(u16 *us);
+void SwapByteOrder32(u32 *ui);
+void SwapByteOrder64(u64 *ull);
+
 #endif /* LIGHTNING_BITCOIN_SCRIPT_H */

@@ -822,6 +822,76 @@ static struct command_result *getutxout(struct command *cmd,
 	return command_still_pending(cmd);
 }
 
+
+//---
+static struct command_result *process_omni_getbalance(struct bitcoin_cli *bcli)
+{
+
+    struct json_stream *response;
+	plugin_log(bcli->cmd->plugin, LOG_DBG, "omni_getbalance exit %i (%s)",
+		   *bcli->exitstatus, bcli_args(bcli));
+
+	const jsmntok_t *tokens, *balancetok;
+	bool valid;
+	char *err;
+
+	tokens = json_parse_input(bcli, bcli->output, bcli->output_bytes,
+	                          &valid);
+	if (!tokens) {
+		err = tal_fmt(bcli->cmd, "%s: %s response (%.*s)",
+			      bcli_args(bcli), valid ? "partial" : "invalid",
+			      (int)bcli->output_bytes, bcli->output);
+		return command_done_err(bcli->cmd, BCLI_ERROR, err, NULL);
+	}
+
+	if (tokens[0].type != JSMN_OBJECT) {
+		err = tal_fmt(bcli->cmd, "%s: gave non-object (%.*s)",
+			      bcli_args(bcli), (int)bcli->output_bytes,
+			      bcli->output);
+		return command_done_err(bcli->cmd, BCLI_ERROR, err, NULL);
+	}
+
+	balancetok = json_get_member(bcli->output, tokens, "balance");
+	if (!balancetok) {
+		err = tal_fmt(bcli->cmd, "%s: bad 'balance' field (%.*s)",
+			      bcli_args(bcli), (int)bcli->output_bytes,
+			      bcli->output);
+		return command_done_err(bcli->cmd, BCLI_ERROR, err, NULL);
+	}
+
+
+	response = jsonrpc_stream_success(bcli->cmd);
+	json_add_string(response, "balance",
+			json_strdup(response, bcli->output, balancetok));
+
+	//in case its not json tokens or balancetok error
+	json_add_bool(response, "success", *bcli->exitstatus == 0);
+	json_add_string(response, "errmsg",
+			bcli->exitstatus ? tal_strndup(bcli, bcli->output,
+						       bcli->output_bytes-1) : "");
+
+	return command_finished(bcli->cmd, response);
+}
+
+static struct command_result *omni_getbalance(struct command *cmd,
+                                           const char *buf,
+                                           const jsmntok_t *toks)
+{
+	const char **params = tal_arr(cmd, const char *, 2);
+
+	if (!param(cmd, buf, toks,
+	           p_req("addr", param_string, &params[0]),
+	           p_req("asset_id", param_string, &params[1]),
+	           NULL))
+		return command_param_failed();
+
+	start_bitcoin_cli(NULL, cmd, process_omni_getbalance, true,
+			  BITCOIND_HIGH_PRIO, "omni_getbalance", params, NULL);
+
+	return command_still_pending(cmd);
+}
+//---
+
 static void bitcoind_failure(struct plugin *p, const char *error_message)
 {
 	const char **cmd = gather_args(bitcoind, "echo", NULL);
@@ -929,6 +999,13 @@ static const struct plugin_command commands[] = {
 		"Get informations about an output, identified by a {txid} an a {vout}",
 		"",
 		getutxout
+	},
+	{
+		"omni_getbalance",
+		"bitcoin",
+		"...",
+		"",
+		omni_getbalance
 	},
 };
 

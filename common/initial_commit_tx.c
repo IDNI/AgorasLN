@@ -198,9 +198,16 @@ struct bitcoin_tx *initial_commit_tx(const tal_t *ctx,
 		 * P2WPKH to `remotepubkey`.
 		 */
 		amount = amount_msat_to_sat_round_down(other_pay);
-		int pos = bitcoin_tx_add_output(
-		    tx, scriptpubkey_p2wpkh(tx, &keyset->other_payment_key),
-		    NULL, amount);
+		int pos;
+		if (!streq(chainparams->network_name, "omni"))
+			pos = bitcoin_tx_add_output(
+		   		tx, scriptpubkey_p2wpkh(tx, &keyset->other_payment_key),
+		   		NULL, amount);
+		else
+		 	pos = bitcoin_tx_add_output(
+		    	tx, scriptpubkey_p2sh(tx, scriptpubkey_p2wpkh(tx, &keyset->other_payment_key)),
+		    	NULL, amount);
+				
 		assert(pos == n);
 		output_order[n] = dummy_remote;
 		n++;

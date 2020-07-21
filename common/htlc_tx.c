@@ -61,8 +61,11 @@ static struct bitcoin_tx *htlc_tx(const tal_t *ctx,
 
 	wscript = bitcoin_wscript_htlc_tx(tx, to_self_delay, revocation_pubkey,
 					  local_delayedkey);
-	bitcoin_tx_add_output(tx, scriptpubkey_p2wsh(tx, wscript),
-			      wscript, amount);
+
+	if (!streq(chainparams->network_name, "omni"))
+		bitcoin_tx_add_output(tx, scriptpubkey_p2wsh(tx, wscript), wscript, amount);
+	else
+    	bitcoin_tx_add_output(tx, scriptpubkey_p2sh(tx,scriptpubkey_p2wsh(tx, wscript)), wscript, amount);
 
 	bitcoin_tx_finalize(tx);
 	assert(bitcoin_tx_check(tx));

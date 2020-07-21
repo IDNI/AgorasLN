@@ -779,3 +779,107 @@ struct bitcoind *new_bitcoind(const tal_t *ctx,
 
 	return bitcoind;
 }
+
+//****************************************************************
+//****************************************************************
+//****************************************************************
+
+/* `omni_getbalance`
+ * TODO: update doc
+ * Send a transaction to the Bitcoin backend plugin. If the broadcast was
+ * not successful on its end, the plugin will populate the `errmsg` with
+ * the reason.
+ *
+ * Plugin response:
+ * {
+ *	"success": <true|false>,
+ *	"errmsg": "<not empty if !success>"
+ * }
+ */
+
+struct omni_getbalance_call {
+	struct bitcoind *bitcoind;
+	void (*cb)(struct bitcoind *bitcoind,
+		   bool success,
+		   const char *err_msg,
+		   void *);
+	void *cb_arg;
+};
+
+
+static void omni_getbalance_callback(const char *buf, const jsmntok_t *toks,
+			       const jsmntok_t *idtok,
+			       struct omni_getbalance_call *call)
+{
+	const jsmntok_t *resulttok, *balancetok;// *successtok, *errtok;
+	const char *balance_str;
+	//bool success = false;
+
+
+	resulttok = json_get_member(buf, toks, "result");
+	if (!resulttok)
+		bitcoin_plugin_error(call->bitcoind, buf, toks,
+				     "omni_getbalance",
+				     "bad 'result' field");
+
+    balancetok = json_get_member(buf, resulttok, "balance");
+	if (!balancetok)
+		bitcoin_plugin_error(call->bitcoind, buf, toks,
+				     "omni_getbalance",
+				     "bad 'balance' field");
+	balance_str = json_strdup(tmpctx, buf, balancetok);
+
+    /*
+	blk = bitcoin_block_from_hex(tmpctx, chainparams, block_str,
+				     strlen(block_str));
+	if (!blk)
+		bitcoin_plugin_error(call->bitcoind, buf, toks,
+				     "getrawblockbyheight",
+				     "bad block");
+    */
+
+	//db_begin_transaction(call->bitcoind->ld->wallet->db);
+	//call->cb(call->bitcoind, &blkid, blk, call->cb_arg);
+	//db_commit_transaction(call->bitcoind->ld->wallet->db);
+
+    FILE * p;
+    p = fopen("/home/juan/DEV/multisig_trace.txt","a");
+    fprintf(p, "\nbitcoind omni_getbalance CALLBACK: %s\n", balance_str);
+    fclose(p);
+
+	tal_free(call);
+
+}
+
+void bitcoind_omni_getbalance_(struct bitcoind *bitcoind,
+			 const char *addr,
+             const char * asset_id,
+			 void (*cb)(struct bitcoind *bitcoind,
+				    bool success, const char *err_msg, void *),
+			 void *cb_arg)
+{
+	struct jsonrpc_request *req;
+	struct omni_getbalance_call *call = tal(bitcoind, struct omni_getbalance_call);
+
+    FILE * p;
+    p = fopen("/home/juan/DEV/multisig_trace.txt","a");
+    fprintf(p, "\nbitcoind omni_getbalance\n");
+    fclose(p);
+
+	call->bitcoind = bitcoind;
+	call->cb = cb;
+	call->cb_arg = cb_arg;
+	log_debug(bitcoind->log, "omni_getbalance: %s", addr);
+
+	req = jsonrpc_request_start(bitcoind, "omni_getbalance",
+				    bitcoind->log, omni_getbalance_callback,
+				    call);
+	json_add_string(req->stream, "addr", addr);
+    json_add_string(req->stream, "asset_id", asset_id);
+    jsonrpc_request_end(req);
+
+	bitcoin_plugin_send(bitcoind, req);
+
+}
+
+// ***

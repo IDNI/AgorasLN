@@ -154,4 +154,21 @@ void bitcoind_getclientversion(struct bitcoind *bitcoind);
 
 void bitcoind_check_commands(struct bitcoind *bitcoind);
 
+//--
+void bitcoind_omni_getbalance_(struct bitcoind *bitcoind,
+            const char *addr,
+            const char *asset_id,
+            void (*cb)(struct bitcoind *bitcoind,
+			           bool success, const char *msg, void *),
+            void *arg);
+#define bitcoind_omni_getbalance(bitcoind_, addr_, asset_id_, cb, arg)		\
+    bitcoind_omni_getbalance_((bitcoind_), (addr_),	(asset_id_), \
+            typesafe_cb_preargs(void, void *,		\
+						(cb), (arg),		\
+						struct bitcoind *,	\
+						bool, const char *),	\
+			(arg))
+
+//--
+
 #endif /* LIGHTNING_LIGHTNINGD_BITCOIND_H */

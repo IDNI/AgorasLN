@@ -209,6 +209,31 @@ const struct chainparams networks[] = {
      .bip32_key_version = {.bip32_pubkey_version = BIP32_VER_MAIN_PUBLIC,
 			   .bip32_privkey_version = BIP32_VER_MAIN_PRIVATE},
      .is_elements = true},
+
+    //TODO OMNI: add main net chainparams
+    {.network_name = "omni",
+     .bip173_name = "omni_bcrt",
+     .bip70_name = "regtest",
+     .genesis_blockhash = {{{.u.u8 = {0x06, 0x22, 0x6e, 0x46, 0x11, 0x1a, 0x0b,
+				      0x59, 0xca, 0xaf, 0x12, 0x60, 0x43, 0xeb,
+				      0x5b, 0xbf, 0x28, 0xc3, 0x4f, 0x3a, 0x5e,
+				      0x33, 0x2a, 0x1f, 0xc7, 0xb2, 0xb7, 0x3c,
+				      0xf1, 0x88, 0x91, 0x0f}}}},
+     .rpc_port = 18332,
+     .cli = "omnicore-cli",
+     .cli_args = "-regtest",
+     .cli_min_supported_version = 150000,
+     .dust_limit = { 546 },
+     .max_funding = AMOUNT_SAT_INIT((1 << 24) - 1),
+     .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
+     .when_lightning_became_cool = 1,
+     .p2pkh_version = 111,
+     .p2sh_version = 196,
+     .testnet = true,
+     .fee_asset_tag = NULL,
+     .bip32_key_version = {.bip32_pubkey_version = BIP32_VER_TEST_PUBLIC,
+			   .bip32_privkey_version = BIP32_VER_TEST_PRIVATE},
+     .is_elements = false},
 };
 
 const struct chainparams *chainparams_for_network(const char *network_name)
@@ -256,4 +281,3 @@ const char *chainparams_get_network_names(const tal_t *ctx)
         tal_append_fmt(&networks_string, ", %s", networks[i].network_name);
     return networks_string;
 }
-

@@ -33,7 +33,12 @@ struct bitcoin_tx *funding_tx(const tal_t *ctx,
 	wscript = bitcoin_redeem_2of2(tx, local_fundingkey, remote_fundingkey);
 	SUPERVERBOSE("# funding witness script = %s\n",
 		     tal_hex(wscript, wscript));
-	bitcoin_tx_add_output(tx, scriptpubkey_p2wsh(tx, wscript), wscript, funding);
+
+	if (!streq(chainparams->network_name, "omni"))
+		bitcoin_tx_add_output(tx, scriptpubkey_p2wsh(tx, wscript), wscript, funding);
+	else
+		bitcoin_tx_add_output(tx, scriptpubkey_p2sh(tx,scriptpubkey_p2wsh(tx, wscript)), wscript, funding);
+
 	tal_free(wscript);
 
 	if (has_change) {

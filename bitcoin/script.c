@@ -740,3 +740,97 @@ bool scripteq(const u8 *s1, const u8 *s2)
 		return false;
 	return memcmp(s1, s2, tal_count(s1)) == 0;
 }
+
+// -- P2SH(P2WSH)
+u8 *bitcoin_scriptsig_p2sh_p2wsh(const tal_t *ctx, u8 *redeemscript)
+{
+	//u8 *redeemscript = bitcoin_redeem_p2sh_p2wpkh(ctx, key), *script;
+    u8 *script;
+
+	/* BIP141: The scriptSig must be exactly a push of the BIP16
+	 * redeemScript or validation fails. */
+	script = tal_arr(ctx, u8, 0);
+	add_push_bytes(&script, redeemscript, tal_count(redeemscript));
+	tal_free(redeemscript);
+	return script;
+}
+
+// <from omni_core>
+// Checks whether the system uses big or little endian.
+static bool isBigEndian(void) {
+	union
+	{
+		uint32_t i;
+		char c[4];
+	} bint = {0x01020304};
+	return 1 == bint.c[0];
+}
+
+// Swaps byte order of 16 bit wide numbers on little-endian systems.
+void SwapByteOrder16(u16 *us)
+{
+	if (isBigEndian()) return;
+	*us = ( *us >> 8) | ( *us << 8);
+}
+
+// Swaps byte order of 32 bit wide numbers on little-endian systems.
+void SwapByteOrder32(u32 *ui)
+{
+  if (isBigEndian()) return;
+
+    *ui = ( *ui >> 24) |
+         (( *ui << 8) & 0x00FF0000) |
+         (( *ui >> 8) & 0x0000FF00) |
+         ( *ui << 24);
+}
+
+// Swaps byte order of 64 bit wide numbers on little-endian systems.
+void SwapByteOrder64(u64 *ull)
+{
+	if (isBigEndian()) return;
+	*ull = (*ull >> 56) |
+    		((*ull << 40) & 0x00FF000000000000) |
+        	((*ull << 24) & 0x0000FF0000000000) |
+    		((*ull << 8)  & 0x000000FF00000000) |
+    		((*ull >> 8)  & 0x00000000FF000000) |
+			((*ull >> 24) & 0x0000000000FF0000) |
+			((*ull >> 40) & 0x000000000000FF00) |
+			(*ull << 56);
+}
+// <!from omni_core>
+
+u8* script_omnisend(const tal_t *ctx, const u32 omni_asset, const u64 omni_ammount)
+{
+
+	u8 *payload = tal_arr(ctx, u8, 0);
+
+    u16 messageType = 0;
+    u16 messageVer = 0;
+    SwapByteOrder16(&messageType);
+    SwapByteOrder16(&messageVer);
+
+    u32 propertyId = omni_asset;
+    u64 ammount = omni_ammount;
+
+    SwapByteOrder32(&propertyId);
+    SwapByteOrder64(&ammount);
+
+    add(&payload, &messageVer, 2);
+    add(&payload, &messageType, 2);
+    add(&payload, &propertyId, 4);
+    add(&payload, &ammount, 8);
+
+
+    // The marker for class C transactions.
+    // TODO: check where the first x14 comes from (standard marker does not
+	//    	define it)
+    u8 marker[5] = {0x14, 0x6f, 0x6d, 0x6e, 0x69}; // Hex-encoded: "omni"
+
+    //if (vchData.size() > nMaxDatacarrierBytes) { return false; }
+    u8 *script = tal_arr(ctx, u8, 0);
+	add_op(&script, OP_RETURN);
+    add(&script, marker, 5);
+    add(&script, payload, 16);
+
+    return script;
+}
